@@ -6,12 +6,41 @@ import enum
 import random
 import arcade.gui as gui
 from arcade.particles import FadeParticle, Emitter, EmitBurst, EmitInterval, EmitMaintainCount
-
+import json
+import os 
+import time
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "MegaBUNK"
 TILE_SCALING = 4
+RESULTS_FILE = "results.json"
+
+
+def load_results():
+    if not os.path.exists(RESULTS_FILE):
+        return []
+
+    with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def load_last_result():
+    results = load_results()
+    if not results:
+        return {"score": 0, "level": 0, "time": ""}
+    return results[-1]
+
+def save_result(score, lvl):
+    results = load_results()
+
+    results.append({
+        "score": score,
+        "level": lvl,
+        "time": time.strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=4)
 
 #! Текстурки для эффектов
 SPARK_TEX = [
@@ -375,7 +404,7 @@ class MyGame(arcade.View):
             self.player.center_x, self.player.center_y)
         # монстры
         arcade.schedule(self.spawn_enemy, 1)
-        self.shoot_sound = arcade.load_sound(":resources:/sounds/laser1.wav")
+        self.shoot_sound = arcade.load_sound("audio/audio_bullet_vamp.mp3")
         # кд пули
         self.can_shoot = True
         self.shoot_cooldown = 1
@@ -417,7 +446,7 @@ class MyGame(arcade.View):
         self.player_list.draw()
         self.bullet_list.draw()
         self.monster_list.draw()
- 
+
         for emitter in self.emmiters:
             emitter.draw()
 
@@ -452,7 +481,8 @@ class MyGame(arcade.View):
                     monster.can_attack = False
                     monster.attack_timer = 0
                     if self.player.health <= 0:
-                        self.window.show_view(StartView())
+                        save_result(self.score, self.lvl)
+                        self.window.show_view(EndView())
         # удары по монстрам
         if self.is_aura:
             for monster in self.monster_list:
@@ -660,6 +690,98 @@ class StartView(arcade.View):
 
     def on_key_press(self, key, modifiers):
         self.window.show_view(MyGame())
+
+
+class EndView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        last = load_last_result()
+        self.score = last["score"]
+        self.lvl = last["level"]
+        self.ui_manager = gui.UIManager()
+        self.show_popup = False
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.BLACK)
+
+    def on_show_view(self):
+        self.ui_manager.enable()
+
+    def on_hide_view(self):
+        self.ui_manager.disable()
+
+    def on_draw(self):
+        self.clear()
+        self.batch = Batch()
+        if self.show_popup == False:
+            start_text = arcade.Text("Вы проиграли", self.window.width / 2, self.window.height / 2,
+                                    arcade.color.WHITE, font_size=50, anchor_x="center", batch=self.batch)
+            any_key_text1 = arcade.Text("Press SPACE to continue",
+                                        self.window.width / 2, self.window.height / 2 - 75,
+                                        arcade.color.GRAY, font_size=20, anchor_x="center", batch=self.batch)
+            any_key_text2 = arcade.Text("Press ENTER to show result",
+                                        self.window.width / 2, self.window.height / 2 - 110,
+                                        arcade.color.GRAY, font_size=20, anchor_x="center", batch=self.batch)
+            any_key_text3 = arcade.Text("Press ESC to close game",
+                                        self.window.width / 2, self.window.height / 2 - 145,
+                                        arcade.color.GRAY, font_size=20, anchor_x="center", batch=self.batch)
+            self.batch.draw()
+        else:
+            self.ui_manager.draw()
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.SPACE:
+            self.window.show_view(StartView())
+        if key == arcade.key.ENTER:
+            popup = ResultPopup(
+                self.score,
+                self.lvl,
+                on_close=lambda: self.window.show_view(EndView())
+            )
+            self.ui_manager.add(popup)
+            self.show_popup = True
+        if key == arcade.key.ESCAPE:
+            self.window.close()
+
+
+class ResultPopup(gui.UIAnchorLayout):
+    def __init__(self, score, lvl, on_close):
+        super().__init__()
+
+        box = gui.UIBoxLayout(vertical=True, space_between=10)
+
+        title = gui.UILabel(
+            text="РЕЗУЛЬТАТЫ",
+            font_size=24,
+            text_color=arcade.color.WHITE,
+        )
+
+        score_label = gui.UILabel(
+            text=f"Score: {score}",
+            font_size=18
+        )
+
+        lvl_label = gui.UILabel(
+            text=f"Level: {lvl}",
+            font_size=18
+        )
+
+        btn = gui.UIFlatButton(text="OK", width=180)
+
+        @btn.event("on_click")
+        def close(event):
+            on_close()
+
+        box.add(title)
+        box.add(score_label)
+        box.add(lvl_label)
+        box.add(btn)
+
+        self.add(
+            anchor_x="center_x",
+            anchor_y="center_y",
+            child=box
+        )
 
 
 def main():

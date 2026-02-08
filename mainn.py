@@ -5,11 +5,45 @@ import math
 import enum
 import random
 import arcade.gui as gui
+from arcade.particles import FadeParticle, Emitter, EmitBurst, EmitInterval, EmitMaintainCount
+
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "MegaBUNK"
 TILE_SCALING = 4
+
+#! Текстурки для эффектов
+SPARK_TEX = [
+    arcade.make_soft_circle_texture(8, arcade.color.PEACH),
+    arcade.make_soft_circle_texture(8, arcade.color.ELECTRIC_CRIMSON),
+    arcade.make_soft_circle_texture(8, arcade.color.BLACK),
+]
+
+#! искры
+
+
+def gravity_drag(p):
+    p.change_y += -0.03
+    p.change_x *= 0.92
+    p.change_y *= 0.92
+
+#! Генерация эммиторов
+
+
+def make_explosion(x, y, count=80):
+    return Emitter(
+        center_xy=(x, y),
+        emit_controller=EmitBurst(count),
+        particle_factory=lambda e: FadeParticle(
+            filename_or_texture=random.choice(SPARK_TEX),
+            change_xy=arcade.math.rand_in_circle((0.0, 0.0), 9.0),
+            lifetime=random.uniform(0.5, 1.1),
+            start_alpha=255, end_alpha=0,
+            scale=random.uniform(0.35, 0.6),
+            mutation_callback=gravity_drag,
+        ),
+    )
 
 
 class FaceDirection(enum.Enum):
@@ -28,10 +62,14 @@ class Hero(arcade.Sprite):
         self.speed = 4
         self.health = 100
 
-        self.idle_texture_down = arcade.load_texture("images/VqqmpWW/Vqqmp_idle/down/1.png")
-        self.idle_texture_up = arcade.load_texture("images/VqqmpWW/Vqqmp_idle/top/1.png")
-        self.idle_texture_left = arcade.load_texture("images/VqqmpWW/Vqqmp_idle/left/1.png")
-        self.idle_texture_right = arcade.load_texture("images/VqqmpWW/Vqqmp_idle/right/1.png")
+        self.idle_texture_down = arcade.load_texture(
+            "images/VqqmpWW/Vqqmp_idle/down/1.png")
+        self.idle_texture_up = arcade.load_texture(
+            "images/VqqmpWW/Vqqmp_idle/top/1.png")
+        self.idle_texture_left = arcade.load_texture(
+            "images/VqqmpWW/Vqqmp_idle/left/1.png")
+        self.idle_texture_right = arcade.load_texture(
+            "images/VqqmpWW/Vqqmp_idle/right/1.png")
         self.texture = self.idle_texture_down
 
         self.walk_textures_down = []
@@ -40,16 +78,20 @@ class Hero(arcade.Sprite):
         self.walk_textures_right = []
 
         for i in range(0, 6):
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_walk/down/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_walk/down/{i + 1}.png")
             self.walk_textures_down.append(texture)
 
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_walk/top/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_walk/top/{i + 1}.png")
             self.walk_textures_up.append(texture)
 
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_walk/left/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_walk/left/{i + 1}.png")
             self.walk_textures_left.append(texture)
 
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_walk/right/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_walk/right/{i + 1}.png")
             self.walk_textures_right.append(texture)
 
         self.shoot_textures_down = []
@@ -58,16 +100,20 @@ class Hero(arcade.Sprite):
         self.shoot_textures_right = []
 
         for i in range(0, 11):
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_attack/down/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_attack/down/{i + 1}.png")
             self.shoot_textures_down.append(texture)
         for i in range(0, 11):
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_attack/top/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_attack/top/{i + 1}.png")
             self.shoot_textures_up.append(texture)
         for i in range(0, 11):
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_attack/left/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_attack/left/{i + 1}.png")
             self.shoot_textures_left.append(texture)
         for i in range(0, 11):
-            texture = arcade.load_texture(f"images/VqqmpWW/Vqqmp_attack/right/{i + 1}.png")
+            texture = arcade.load_texture(
+                f"images/VqqmpWW/Vqqmp_attack/right/{i + 1}.png")
             self.shoot_textures_right.append(texture)
 
         self.is_shooting = False
@@ -216,8 +262,8 @@ class Hero(arcade.Sprite):
 class Bullet(arcade.Sprite):
     def __init__(self, start_x, start_y, target_x, target_y):
         super().__init__(
-            ":resources:/images/space_shooter/laserBlue01.png",
-            scale=0.5
+            "images/bullet_vamp.png",
+            scale=1
         )
 
         self.center_x = start_x
@@ -270,6 +316,7 @@ class MyGame(arcade.View):
         self.world_camera = arcade.camera.Camera2D()
         self.gui_camera = arcade.camera.Camera2D()
         self.player: arcade.Sprite | None = None
+        self.emmiters = []
         self.world_width = SCREEN_WIDTH
         self.world_height = SCREEN_HEIGHT
         self.score = 0
@@ -277,7 +324,7 @@ class MyGame(arcade.View):
         self.lvl = 0
         self.aura_radius = 100
         self.aura_damage = 1
-        # в будущем добавить
+        #! aura
         self.is_aura = False
         self.tile_map = None
         self.player_list = None
@@ -304,8 +351,10 @@ class MyGame(arcade.View):
         self.bullet_list = arcade.SpriteList()
         self.batch = Batch()
         # мировые координаты
-        self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
-        self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
+        self.world_width = int(self.tile_map.width *
+                               self.tile_map.tile_width * TILE_SCALING)
+        self.world_height = int(self.tile_map.height *
+                                self.tile_map.tile_height * TILE_SCALING)
         # карта из tiled
         self.floor_list = self.tile_map.sprite_lists["floor"]
         self.wall_list = self.tile_map.sprite_lists["walls"]
@@ -322,7 +371,8 @@ class MyGame(arcade.View):
         self.physics_engine_2 = arcade.PhysicsEngineSimple(
             self.monster_list, self.collision_list)
         self.keys_pressed = set()
-        self.world_camera.position = (self.player.center_x, self.player.center_y)
+        self.world_camera.position = (
+            self.player.center_x, self.player.center_y)
         # монстры
         arcade.schedule(self.spawn_enemy, 1)
         self.shoot_sound = arcade.load_sound(":resources:/sounds/laser1.wav")
@@ -332,11 +382,13 @@ class MyGame(arcade.View):
 
     def create_bullet(self, target_x, target_y):
         if self.can_shoot:
-            bullet = Bullet(self.player.center_x, self.player.center_y, target_x, target_y)
+            bullet = Bullet(self.player.center_x,
+                            self.player.center_y, target_x, target_y)
             self.bullet_list.append(bullet)
-            arcade.play_sound(self.shoot_sound, volume=0.1) 
+            arcade.play_sound(self.shoot_sound, volume=0.1)
             self.can_shoot = False
-            arcade.schedule(lambda delta_time: self.weapon_ready(delta_time), self.shoot_cooldown)
+            arcade.schedule(lambda delta_time: self.weapon_ready(
+                delta_time), self.shoot_cooldown)
 
     def spawn_enemy(self, delta_time):
         x = random.randint(0, self.world_width)
@@ -346,19 +398,36 @@ class MyGame(arcade.View):
 
     def on_draw(self):
         self.clear()
+
+        # МИР
         self.world_camera.use()
         self.floor_list.draw()
         self.wall_list.draw()
         self.decor_list.draw()
+
         if self.is_aura:
-            arcade.draw_circle_outline(self.player.center_x, self.player.center_y, self.aura_radius,
-                                       arcade.color.RED_DEVIL,
-                                       3)
+            arcade.draw_circle_outline(
+                self.player.center_x,
+                self.player.center_y,
+                self.aura_radius,
+                arcade.color.RED_DEVIL,
+                3
+            )
+
         self.player_list.draw()
         self.bullet_list.draw()
         self.monster_list.draw()
+ 
+        for emitter in self.emmiters:
+            emitter.draw()
+
+        # GUI
         self.gui_camera.use()
-        arcade.draw_rect_filled(arcade.rect.XYWH(40, SCREEN_HEIGHT - 60, 150, 150), color=arcade.color.DARK_BYZANTIUM)
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(40, SCREEN_HEIGHT - 60, 150, 150),
+            arcade.color.DARK_BYZANTIUM
+        )
+
         self.batch.draw()
         self.ui_manager.draw()
 
@@ -392,9 +461,12 @@ class MyGame(arcade.View):
                     monster.monster_health -= self.aura_damage * delta_time
                     self.check_monstr(monster)
         for bullet in self.bullet_list:
-            enemy_hit_list = arcade.check_for_collision_with_list(bullet, self.monster_list)
+            enemy_hit_list = arcade.check_for_collision_with_list(
+                bullet, self.monster_list)
             for enemy in enemy_hit_list:
                 enemy.monster_health -= 5
+                self.emmiters.append(make_explosion(
+                    enemy.center_x, enemy.center_y))
                 self.check_monstr(enemy)
                 bullet.remove_from_sprite_lists()
         self.monster_list.update(delta_time)
@@ -408,6 +480,13 @@ class MyGame(arcade.View):
             position,
             0.6
         )
+
+        for emitter in self.emmiters:
+            emitter.update()
+
+        # Удаляем "мёртвые" эмиттеры
+        self.emmiters = [e for e in self.emmiters if not e.can_reap()]
+
         # Обновляем текст
         self.pl_h_text = arcade.Text(f"HP: {self.player.health}", 10, SCREEN_HEIGHT - 30,
                                      arcade.color.SUNSET_ORANGE, 20, font_name="Calibri", batch=self.batch)
@@ -431,8 +510,10 @@ class MyGame(arcade.View):
 
     def on_mouse_press(self, x, y, button, modifiers):
         if button == arcade.MOUSE_BUTTON_LEFT:
-            world_x = self.world_camera.position[0] + (x - self.window.width / 2)
-            world_y = self.world_camera.position[1] + (y - self.window.height / 2)
+            world_x = self.world_camera.position[0] + \
+                (x - self.window.width / 2)
+            world_y = self.world_camera.position[1] + \
+                (y - self.window.height / 2)
             self.player.shoot(world_x, world_y)
 
     def weapon_ready(self, delta_time):

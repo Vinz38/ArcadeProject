@@ -8,7 +8,7 @@ import arcade.gui as gui
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Спрайтовый герой"
+SCREEN_TITLE = "MegaBUNK"
 TILE_SCALING = 4
 
 
@@ -325,6 +325,7 @@ class MyGame(arcade.View):
         self.world_camera.position = (self.player.center_x, self.player.center_y)
         # монстры
         arcade.schedule(self.spawn_enemy, 1)
+        self.shoot_sound = arcade.load_sound(":resources:/sounds/laser1.wav")
         # кд пули
         self.can_shoot = True
         self.shoot_cooldown = 1
@@ -333,6 +334,7 @@ class MyGame(arcade.View):
         if self.can_shoot:
             bullet = Bullet(self.player.center_x, self.player.center_y, target_x, target_y)
             self.bullet_list.append(bullet)
+            arcade.play_sound(self.shoot_sound, volume=0.1) 
             self.can_shoot = False
             arcade.schedule(lambda delta_time: self.weapon_ready(delta_time), self.shoot_cooldown)
 
@@ -568,7 +570,7 @@ class StartView(arcade.View):
     def on_draw(self):
         self.clear()
         self.batch = Batch()
-        start_text = arcade.Text("Спрайтовый герой", self.window.width / 2, self.window.height / 2,
+        start_text = arcade.Text("MegaBUNK", self.window.width / 2, self.window.height / 2,
                                  arcade.color.WHITE, font_size=50, anchor_x="center", batch=self.batch)
         any_key_text = arcade.Text("Any key to start",
                                    self.window.width / 2, self.window.height / 2 - 75,

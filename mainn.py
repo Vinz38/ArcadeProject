@@ -7,7 +7,7 @@ import random
 import arcade.gui as gui
 from arcade.particles import FadeParticle, Emitter, EmitBurst, EmitInterval, EmitMaintainCount
 import json
-import os 
+import os
 import time
 
 SCREEN_WIDTH = 1000
@@ -24,11 +24,13 @@ def load_results():
     with open(RESULTS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def load_last_result():
     results = load_results()
     if not results:
         return {"score": 0, "level": 0, "time": ""}
     return results[-1]
+
 
 def save_result(score, lvl):
     results = load_results()
@@ -41,6 +43,7 @@ def save_result(score, lvl):
 
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
+
 
 #! Текстурки для эффектов
 SPARK_TEX = [
@@ -715,7 +718,7 @@ class EndView(arcade.View):
         self.batch = Batch()
         if self.show_popup == False:
             start_text = arcade.Text("Вы проиграли", self.window.width / 2, self.window.height / 2,
-                                    arcade.color.WHITE, font_size=50, anchor_x="center", batch=self.batch)
+                                     arcade.color.WHITE, font_size=50, anchor_x="center", batch=self.batch)
             any_key_text1 = arcade.Text("Press SPACE to continue",
                                         self.window.width / 2, self.window.height / 2 - 75,
                                         arcade.color.GRAY, font_size=20, anchor_x="center", batch=self.batch)
